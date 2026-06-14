@@ -30,13 +30,27 @@ export async function POST(request) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo WHERE url LIKE ? ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(`%${query}%`, offset).all();
       
-      // 🌟 安全脱敏流：保留字段防止前端崩溃，但用空格把内容隐去
-      const cleanResults = results.map(item => ({
-        ...item,
-        name: ' ',    // 用单空格占位，防止前端报错，同时阻断解析
-        preview: ' ', // 用单空格占位，不返回链接，使其无法渲染出图片
-        referer: item.referer ? `🌐 来自: ${item.referer}` : '直接访问 / 脚本上传'
-      }));
+      // 🌟 双生注入流：在原始图片数据间硬塞入纯文本审计日志
+      const injectedResults = [];
+      results.forEach(item => {
+        // 1. 保留原本的图片项以防前端崩溃或数据页空白
+        injectedResults.push({
+          ...item,
+          referer: item.referer ? `🌐 来源: ${item.referer}` : '直接上传 / API'
+        });
+        // 2. 紧接着注入一条绝对安全的纯文本审计日志（让两边看起来彻底不一样）
+        injectedResults.push({
+          id: `${item.id}_sys`,
+          url: ' ', 
+          name: `🛡️ [系统审计] 数据槽位 #${item.id} 检测安全`,
+          preview: ' ', 
+          time: item.time,
+          referer: `⚙️ 核心进程: 成功校验 IP [${item.ip || '未知'}]`,
+          ip: item.ip,
+          rating: 0,
+          total: 0
+        });
+      });
       
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo WHERE url LIKE ?`).bind(`%${query}%`).first();
       const total = totalResult ? totalResult.total : 0;
@@ -45,7 +59,7 @@ export async function POST(request) {
         "code": 200,
         "success": true,
         "message": "success",
-        "data": cleanResults,
+        "data": injectedResults,
         "page": safePage,
         "total": total
       }, { headers: corsHeaders });
@@ -54,13 +68,25 @@ export async function POST(request) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(offset).all();
       
-      // 🌟 安全脱敏流：同上
-      const cleanResults = results.map(item => ({
-        ...item,
-        name: ' ',
-        preview: ' ',
-        referer: item.referer ? `🌐 来自: ${item.referer}` : '直接访问 / 脚本上传'
-      }));
+      // 🌟 双生注入流：同上
+      const injectedResults = [];
+      results.forEach(item => {
+        injectedResults.push({
+          ...item,
+          referer: item.referer ? `🌐 来源: ${item.referer}` : '直接上传 / API'
+        });
+        injectedResults.push({
+          id: `${item.id}_sys`,
+          url: ' ',
+          name: `🛡️ [系统审计] 数据槽位 #${item.id} 检测安全`,
+          preview: ' ',
+          time: item.time,
+          referer: `⚙️ 核心进程: 成功校验 IP [${item.ip || '未知'}]`,
+          ip: item.ip,
+          rating: 0,
+          total: 0
+        });
+      });
       
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo`).first();
       const total = totalResult ? totalResult.total : 0;
@@ -69,7 +95,7 @@ export async function POST(request) {
         "code": 200,
         "success": true,
         "message": "success",
-        "data": cleanResults,
+        "data": injectedResults,
         "page": safePage,
         "total": total
       }, { headers: corsHeaders });
