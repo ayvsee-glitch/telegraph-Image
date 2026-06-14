@@ -32,10 +32,15 @@ export async function POST(request) {
     // 在 JavaScript 层提前计算好偏移量，避免 SQL 拼接异常
     const offset = safePage * 10;
 
-    // 🌟 偷天换日：将所有的 tgimglog 替换为实际有数据的 imginfo 表
     if (query) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo WHERE url LIKE ? ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(`%${query}%`, offset).all();
+      
+      // 🌟 核心改动：循环结果，将 preview 字段设为空字符串，隐藏日志页的图片预览
+      const cleanResults = results.map(item => ({
+        ...item,
+        preview: '' 
+      }));
       
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo WHERE url LIKE ?`).bind(`%${query}%`).first();
       const total = totalResult ? totalResult.total : 0;
@@ -44,7 +49,7 @@ export async function POST(request) {
         "code": 200,
         "success": true,
         "message": "success",
-        "data": results,
+        "data": cleanResults,
         "page": safePage,
         "total": total
       }, { headers: corsHeaders });
@@ -53,6 +58,12 @@ export async function POST(request) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(offset).all();
       
+      // 🌟 核心改动：循环结果，将 preview 字段设为空字符串，隐藏日志页的图片预览
+      const cleanResults = results.map(item => ({
+        ...item,
+        preview: '' 
+      }));
+      
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo`).first();
       const total = totalResult ? totalResult.total : 0;
 
@@ -60,7 +71,7 @@ export async function POST(request) {
         "code": 200,
         "success": true,
         "message": "success",
-        "data": results,
+        "data": cleanResults,
         "page": safePage,
         "total": total
       }, { headers: corsHeaders });
