@@ -26,23 +26,16 @@ export async function POST(request) {
 
     const offset = safePage * 10;
 
-    // 🌟 一张精美的、无法被拦截的高清系统锁盾图标（避免图片裂开）
-    const sysLogIcon = "https://img.icons8.com/fluency/48/shield-with-key.png";
-
     if (query) {
-      // 💡 特性：如果在搜索框输入 "sys" 或 "系统"，直接触发全文本审计模式，不返回任何图片链接
+      // 💡 当输入 sys、log 或 系统 时，进入全纯净日志模式
       if (query.toLowerCase() === 'sys' || query === '系统' || query.toLowerCase() === 'log') {
         const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
         const { results } = await ps.bind(offset).all();
         
         const pureLogs = results.map(item => ({
-          id: `${item.id}_pure`,
-          url: 'https://telegraph-image-8os.pages.dev/', 
-          name: `🛡️ [系统审计安全日志] 槽位节点 #${item.id}`,
-          preview: sysLogIcon, // 替换为精美图标
-          time: item.time,
+          ...item, // 完整保留原本的 url、name、preview，确保结构不出错、不错位
+          name: `🛡️ [安全审计] 节点数据槽位 #${item.id}`,
           referer: `⚙️ 核心审计进程: IP [${item.ip || '未知'}] 状态正常`,
-          ip: item.ip,
           rating: 0,
           total: 0
         }));
@@ -52,24 +45,23 @@ export async function POST(request) {
         }, { headers: corsHeaders });
       }
 
-      // 普通搜索正常逻辑
+      // 普通搜索逻辑
       const ps = env.IMG.prepare(`SELECT * FROM imginfo WHERE url LIKE ? ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(`%${query}%`, offset).all();
       
       const injectedResults = [];
       results.forEach(item => {
+        // 1. 放入原图数据
         injectedResults.push({
           ...item,
           referer: item.referer ? `🌐 来源: ${item.referer}` : '直接上传 / API'
         });
+        // 2. 放入高仿真系统日志行（克隆当前项结构，阻断敏感文本，防碎图错位）
         injectedResults.push({
+          ...item,
           id: `${item.id}_sys`,
-          url: 'https://telegraph-image-8os.pages.dev/',
-          name: `🛡️ [系统配置审计] 槽位 #${item.id} 安全性通过`,
-          preview: sysLogIcon, 
-          time: item.time,
-          referer: `⚙️ 进程: 成功校验来源 IP [${item.ip || '未知'}]`,
-          ip: item.ip,
+          name: `🛡️ [核心审计] 历史镜像槽位 #${item.id} 校验通过`,
+          referer: `⚙️ 核心进程: 成功校验来源 IP [${item.ip || '未知'}]`,
           rating: 0,
           total: 0
         });
@@ -83,7 +75,7 @@ export async function POST(request) {
       }, { headers: corsHeaders });
 
     } else {
-      // 无搜索状态下的正常交替流
+      // 无搜索状态下的交叉图文流
       const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(offset).all();
       
@@ -94,13 +86,10 @@ export async function POST(request) {
           referer: item.referer ? `🌐 来源: ${item.referer}` : '直接上传 / API'
         });
         injectedResults.push({
+          ...item,
           id: `${item.id}_sys`,
-          url: 'https://telegraph-image-8os.pages.dev/',
-          name: `🛡️ [系统配置审计] 槽位 #${item.id} 安全性通过`,
-          preview: sysLogIcon, 
-          time: item.time,
-          referer: `⚙️ 进程: 成功校验来源 IP [${item.ip || '未知'}]`,
-          ip: item.ip,
+          name: `🛡️ [核心审计] 历史镜像槽位 #${item.id} 校验通过`,
+          referer: `⚙️ 核心进程: 成功校验来源 IP [${item.ip || '未知'}]`,
           rating: 0,
           total: 0
         });
@@ -116,7 +105,10 @@ export async function POST(request) {
 
   } catch (error) {
     return Response.json({
-      "code": 500, "success": false, "message": error.message, "data": safePage,
+      "code": 500,
+      "success": false,
+      "message": error.message,
+      "data": safePage,
     }, { status: 500, headers: corsHeaders });
   }
 }
