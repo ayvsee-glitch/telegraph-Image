@@ -26,64 +26,44 @@ export async function POST(request) {
 
     const offset = safePage * 10;
 
-    // ==========================================
-    // 🔍 情况 A：用户触发了搜索框
-    // ==========================================
+    // 💡 核心设计：日志接口不再返回真实的图片路径和预览，而是直接格式化为纯文本
     if (query) {
-      const lowerQuery = query.toLowerCase();
-
-      // 💡 核心彩蛋：如果搜索 sys、log、系统 或者是管理 IP，触发纯净系统审计日志模式
-      if (lowerQuery === 'sys' || lowerQuery === 'log' || query === '系统' || lowerQuery === '89.125.244.195') {
-        const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
-        const { results } = await ps.bind(offset).all();
-        
-        // 伪装成极度逼真的系统安全操作日志
-        const pureLogs = results.map((item, index) => ({
-          ...item,
-          name: `🛡️ [安全审计] 历史数据镜像槽位 #${item.id} 校验正常`,
-          referer: `⚙️ 核心审计进程: 成功验证通信节点 IP [${item.ip || '未知'}]`,
-          rating: 0,
-          total: 0
-        }));
-
-        const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo`).first();
-        const total = totalResult ? totalResult.total : 0;
-
-        return Response.json({
-          "code": 200, "success": true, "message": "success", "data": pureLogs, "page": safePage, "total": total
-        }, { headers: corsHeaders });
-      }
-
-      // 普通关键字搜索：保持原版搜索引擎的干净纯粹
-      const ps = env.IMG.prepare(`SELECT * FROM imginfo WHERE url LIKE ? ORDER BY id DESC LIMIT 10 OFFSET ?`);
-      const { results } = await ps.bind(`%${query}%`, offset).all();
+      // 日志页面的搜索：根据关键词过滤
+      const ps = env.IMG.prepare(`SELECT * FROM imginfo WHERE url LIKE ? OR ip LIKE ? ORDER BY id DESC LIMIT 10 OFFSET ?`);
+      const { results } = await ps.bind(`%${query}%`, `%${query}%`, offset).all();
       
-      const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo WHERE url LIKE ?`).bind(`%${query}%`).first();
+      const textLogs = results.map(item => ({
+        ...item,
+        // 🌟 强行截断图片特征，组合成一段纯文字的事件记录，让前端只能老老实实当文本渲染
+        name: `[事件] 槽位 #${item.id} 成功接收到客户端上传请求`,
+        preview: '📝 TEXT_LOG', // 用这串字符破坏 URL 格式，从而不渲染图片
+        referer: item.referer ? `🌐 来源: ${item.referer}` : '直接访问 / 工具链上传'
+      }));
+
+      const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo WHERE url LIKE ? OR ip LIKE ?`).bind(`%${query}%`, `%${query}%`).first();
       const total = totalResult ? totalResult.total : 0;
 
       return Response.json({
-        "code": 200, "success": true, "message": "success", "data": results, "page": safePage, "total": total
+        "code": 200, "success": true, "message": "success", "data": textLogs, "page": safePage, "total": total
       }, { headers: corsHeaders });
 
     } else {
-      // ==========================================
-      // 🌐 情况 B：日常无搜索状态（纯净数据流）
-      // ==========================================
-      // 不夹带任何日志干扰行，让数据管理页恢复 100% 纯净度
+      // 日志页面的日常默认状态：把前 10 条数据直接转写为行为日志
       const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(offset).all();
       
-      // 顺便帮你在来源处美化一下样式
-      const cleanResults = results.map(item => ({
+      const textLogs = results.map(item => ({
         ...item,
-        referer: item.referer ? `🌐 来源: ${item.referer}` : '直接上传 / API'
+        name: `[事件] 槽位 #${item.id} 成功接收到客户端上传请求`,
+        preview: '📝 TEXT_LOG', 
+        referer: item.referer ? `🌐 来源: ${item.referer}` : '直接访问 / 工具链上传'
       }));
 
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo`).first();
       const total = totalResult ? totalResult.total : 0;
 
       return Response.json({
-        "code": 200, "success": true, "message": "success", "data": cleanResults, "page": safePage, "total": total
+        "code": 200, "success": true, "message": "success", "data": textLogs, "page": safePage, "total": total
       }, { headers: corsHeaders });
     }
 
