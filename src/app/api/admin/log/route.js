@@ -10,18 +10,13 @@ const corsHeaders = {
 export const runtime = 'edge';
 
 export async function POST(request) {
-  // 获取 Cloudflare 上下文
   const { env, cf, ctx } = getRequestContext();
-  
-  // 在外层声明安全兜底变量
   let safePage = 0;
 
   try {
-    // 安全读取请求体，防止解析空 body 崩溃
     const body = await request.json().catch(() => ({}));
     const { page, query } = body;
 
-    // 强制安全转换为数字
     if (page !== undefined && page !== null) {
       safePage = parseInt(page, 10);
     }
@@ -29,17 +24,18 @@ export async function POST(request) {
       safePage = 0;
     }
 
-    // 在 JavaScript 层提前计算好偏移量，避免 SQL 拼接异常
     const offset = safePage * 10;
 
     if (query) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo WHERE url LIKE ? ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(`%${query}%`, offset).all();
       
-      // 🌟 核心改动：循环结果，将 preview 字段设为空字符串，隐藏日志页的图片预览
+      // 🌟 终极魔改：重构日志页的数据展示，打破前端的图片渲染逻辑
       const cleanResults = results.map(item => ({
         ...item,
-        preview: '' 
+        name: `ℹ️ 历史上传事件 (ID: ${item.id || 'N/A'})`, // 把长长的链接变成审计文本
+        preview: 'https://images.placeholders.dev/?width=100&height=50&text=LOG&bgColor=%23f3f4f6&textColor=%239ca3af', // 塞一个写着 "LOG" 的灰底纯文字小方块
+        referer: item.referer ? `🌐 来自: ${item.referer}` : '直接访问 / 脚本上传'
       }));
       
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo WHERE url LIKE ?`).bind(`%${query}%`).first();
@@ -58,10 +54,12 @@ export async function POST(request) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(offset).all();
       
-      // 🌟 核心改动：循环结果，将 preview 字段设为空字符串，隐藏日志页的图片预览
+      // 🌟 终极魔改：同上，无搜索状态下也彻底改变日志页风貌
       const cleanResults = results.map(item => ({
         ...item,
-        preview: '' 
+        name: `ℹ️ 历史上传事件 (ID: ${item.id || 'N/A'})`,
+        preview: 'https://images.placeholders.dev/?width=100&height=50&text=LOG&bgColor=%23f3f4f6&textColor=%239ca3af',
+        referer: item.referer ? `🌐 来自: ${item.referer}` : '直接访问 / 脚本上传'
       }));
       
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo`).first();
@@ -78,7 +76,6 @@ export async function POST(request) {
     }
 
   } catch (error) {
-    // 即使发生错误，也返回标准 JSON 格式，避免前端报 Unexpected token 'I'
     return Response.json({
       "code": 500,
       "success": false,
