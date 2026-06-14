@@ -30,11 +30,11 @@ export async function POST(request) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo WHERE url LIKE ? ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(`%${query}%`, offset).all();
       
-      // 🌟 终极魔改：重构日志页的数据展示，打破前端的图片渲染逻辑
+      // 🌟 核心改动：用彻底非 URL 的纯文字阻断前端图片的强行复原
       const cleanResults = results.map(item => ({
         ...item,
-        name: `ℹ️ 历史上传事件 (ID: ${item.id || 'N/A'})`, // 把长长的链接变成审计文本
-        preview: 'https://images.placeholders.dev/?width=100&height=50&text=LOG&bgColor=%23f3f4f6&textColor=%239ca3af', // 塞一个写着 "LOG" 的灰底纯文字小方块
+        name: `📝 [日志] 记录 ID: ${item.id || 'N/A'}`,
+        preview: '📋 LOG',
         referer: item.referer ? `🌐 来自: ${item.referer}` : '直接访问 / 脚本上传'
       }));
       
@@ -54,11 +54,11 @@ export async function POST(request) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(offset).all();
       
-      // 🌟 终极魔改：同上，无搜索状态下也彻底改变日志页风貌
+      // 🌟 核心改动：用彻底非 URL 的纯文字阻断前端图片的强行复原
       const cleanResults = results.map(item => ({
         ...item,
-        name: `ℹ️ 历史上传事件 (ID: ${item.id || 'N/A'})`,
-        preview: 'https://images.placeholders.dev/?width=100&height=50&text=LOG&bgColor=%23f3f4f6&textColor=%239ca3af',
+        name: `📝 [日志] 记录 ID: ${item.id || 'N/A'}`,
+        preview: '📋 LOG',
         referer: item.referer ? `🌐 来自: ${item.referer}` : '直接访问 / 脚本上传'
       }));
       
