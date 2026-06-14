@@ -30,12 +30,15 @@ export async function POST(request) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo WHERE url LIKE ? ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(`%${query}%`, offset).all();
       
-      // 🌟 核心改动：用彻底非 URL 的纯文字阻断前端图片的强行复原
+      // 🌟 终极剔除：直接移除 name 和 preview 字段，并优化 referer 显示
       const cleanResults = results.map(item => ({
-        ...item,
-        name: `📝 [日志] 记录 ID: ${item.id || 'N/A'}`,
-        preview: '📋 LOG',
+        id: item.id,
+        time: item.time,
+        ip: item.ip,
+        rating: item.rating,
+        total: item.total,
         referer: item.referer ? `🌐 来自: ${item.referer}` : '直接访问 / 脚本上传'
+        // 彻底不给前端返回 name 和 preview 字段
       }));
       
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo WHERE url LIKE ?`).bind(`%${query}%`).first();
@@ -54,12 +57,15 @@ export async function POST(request) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(offset).all();
       
-      // 🌟 核心改动：用彻底非 URL 的纯文字阻断前端图片的强行复原
+      // 🌟 终极剔除：直接移除 name 和 preview 字段，并优化 referer 显示
       const cleanResults = results.map(item => ({
-        ...item,
-        name: `📝 [日志] 记录 ID: ${item.id || 'N/A'}`,
-        preview: '📋 LOG',
+        id: item.id,
+        time: item.time,
+        ip: item.ip,
+        rating: item.rating,
+        total: item.total,
         referer: item.referer ? `🌐 来自: ${item.referer}` : '直接访问 / 脚本上传'
+        // 彻底不给前端返回 name 和 preview 字段
       }));
       
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo`).first();
