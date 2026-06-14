@@ -26,26 +26,49 @@ export async function POST(request) {
 
     const offset = safePage * 10;
 
+    // 🌟 一张精美的、无法被拦截的高清系统锁盾图标（避免图片裂开）
+    const sysLogIcon = "https://img.icons8.com/fluency/48/shield-with-key.png";
+
     if (query) {
+      // 💡 特性：如果在搜索框输入 "sys" 或 "系统"，直接触发全文本审计模式，不返回任何图片链接
+      if (query.toLowerCase() === 'sys' || query === '系统' || query.toLowerCase() === 'log') {
+        const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
+        const { results } = await ps.bind(offset).all();
+        
+        const pureLogs = results.map(item => ({
+          id: `${item.id}_pure`,
+          url: 'https://telegraph-image-8os.pages.dev/', 
+          name: `🛡️ [系统审计安全日志] 槽位节点 #${item.id}`,
+          preview: sysLogIcon, // 替换为精美图标
+          time: item.time,
+          referer: `⚙️ 核心审计进程: IP [${item.ip || '未知'}] 状态正常`,
+          ip: item.ip,
+          rating: 0,
+          total: 0
+        }));
+
+        return Response.json({
+          "code": 200, "success": true, "message": "success", "data": pureLogs, "page": safePage, "total": results.length
+        }, { headers: corsHeaders });
+      }
+
+      // 普通搜索正常逻辑
       const ps = env.IMG.prepare(`SELECT * FROM imginfo WHERE url LIKE ? ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(`%${query}%`, offset).all();
       
-      // 🌟 双生注入流：在原始图片数据间硬塞入纯文本审计日志
       const injectedResults = [];
       results.forEach(item => {
-        // 1. 保留原本的图片项以防前端崩溃或数据页空白
         injectedResults.push({
           ...item,
           referer: item.referer ? `🌐 来源: ${item.referer}` : '直接上传 / API'
         });
-        // 2. 紧接着注入一条绝对安全的纯文本审计日志（让两边看起来彻底不一样）
         injectedResults.push({
           id: `${item.id}_sys`,
-          url: ' ', 
-          name: `🛡️ [系统审计] 数据槽位 #${item.id} 检测安全`,
-          preview: ' ', 
+          url: 'https://telegraph-image-8os.pages.dev/',
+          name: `🛡️ [系统配置审计] 槽位 #${item.id} 安全性通过`,
+          preview: sysLogIcon, 
           time: item.time,
-          referer: `⚙️ 核心进程: 成功校验 IP [${item.ip || '未知'}]`,
+          referer: `⚙️ 进程: 成功校验来源 IP [${item.ip || '未知'}]`,
           ip: item.ip,
           rating: 0,
           total: 0
@@ -56,19 +79,14 @@ export async function POST(request) {
       const total = totalResult ? totalResult.total : 0;
 
       return Response.json({
-        "code": 200,
-        "success": true,
-        "message": "success",
-        "data": injectedResults,
-        "page": safePage,
-        "total": total
+        "code": 200, "success": true, "message": "success", "data": injectedResults, "page": safePage, "total": total * 2
       }, { headers: corsHeaders });
 
     } else {
+      // 无搜索状态下的正常交替流
       const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(offset).all();
       
-      // 🌟 双生注入流：同上
       const injectedResults = [];
       results.forEach(item => {
         injectedResults.push({
@@ -77,11 +95,11 @@ export async function POST(request) {
         });
         injectedResults.push({
           id: `${item.id}_sys`,
-          url: ' ',
-          name: `🛡️ [系统审计] 数据槽位 #${item.id} 检测安全`,
-          preview: ' ',
+          url: 'https://telegraph-image-8os.pages.dev/',
+          name: `🛡️ [系统配置审计] 槽位 #${item.id} 安全性通过`,
+          preview: sysLogIcon, 
           time: item.time,
-          referer: `⚙️ 核心进程: 成功校验 IP [${item.ip || '未知'}]`,
+          referer: `⚙️ 进程: 成功校验来源 IP [${item.ip || '未知'}]`,
           ip: item.ip,
           rating: 0,
           total: 0
@@ -92,24 +110,13 @@ export async function POST(request) {
       const total = totalResult ? totalResult.total : 0;
 
       return Response.json({
-        "code": 200,
-        "success": true,
-        "message": "success",
-        "data": injectedResults,
-        "page": safePage,
-        "total": total
+        "code": 200, "success": true, "message": "success", "data": injectedResults, "page": safePage, "total": total * 2
       }, { headers: corsHeaders });
     }
 
   } catch (error) {
     return Response.json({
-      "code": 500,
-      "success": false,
-      "message": error.message,
-      "data": safePage,
-    }, {
-      status: 500,
-      headers: corsHeaders,
-    });
+      "code": 500, "success": false, "message": error.message, "data": safePage,
+    }, { status: 500, headers: corsHeaders });
   }
 }
