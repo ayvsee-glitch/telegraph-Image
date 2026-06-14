@@ -30,15 +30,12 @@ export async function POST(request) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo WHERE url LIKE ? ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(`%${query}%`, offset).all();
       
-      // 🌟 终极剔除：直接移除 name 和 preview 字段，并优化 referer 显示
+      // 🌟 安全脱敏流：保留字段防止前端崩溃，但用空格把内容隐去
       const cleanResults = results.map(item => ({
-        id: item.id,
-        time: item.time,
-        ip: item.ip,
-        rating: item.rating,
-        total: item.total,
+        ...item,
+        name: ' ',    // 用单空格占位，防止前端报错，同时阻断解析
+        preview: ' ', // 用单空格占位，不返回链接，使其无法渲染出图片
         referer: item.referer ? `🌐 来自: ${item.referer}` : '直接访问 / 脚本上传'
-        // 彻底不给前端返回 name 和 preview 字段
       }));
       
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo WHERE url LIKE ?`).bind(`%${query}%`).first();
@@ -57,15 +54,12 @@ export async function POST(request) {
       const ps = env.IMG.prepare(`SELECT * FROM imginfo ORDER BY id DESC LIMIT 10 OFFSET ?`);
       const { results } = await ps.bind(offset).all();
       
-      // 🌟 终极剔除：直接移除 name 和 preview 字段，并优化 referer 显示
+      // 🌟 安全脱敏流：同上
       const cleanResults = results.map(item => ({
-        id: item.id,
-        time: item.time,
-        ip: item.ip,
-        rating: item.rating,
-        total: item.total,
+        ...item,
+        name: ' ',
+        preview: ' ',
         referer: item.referer ? `🌐 来自: ${item.referer}` : '直接访问 / 脚本上传'
-        // 彻底不给前端返回 name 和 preview 字段
       }));
       
       const totalResult = await env.IMG.prepare(`SELECT COUNT(*) as total FROM imginfo`).first();
